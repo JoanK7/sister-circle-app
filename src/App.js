@@ -1,25 +1,48 @@
-import logo from './logo.svg';
+import React, { useState } from 'react';
+import { AuthProvider } from './contexts/AuthContext';
+import Navigation from './components/Navigation';
+import HomePage from './pages/HomePage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import MentorsPage from './pages/MentorsPage';
+import SessionsPage from './pages/SessionsPage';
+import ForumPage from './pages/ForumPage';
+import ProfilePage from './pages/ProfilePage';
 import './App.css';
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
-}
+const SisterCircleApp = () => {
+    const [page, setPage] = useState('home');
 
-export default App;
+    const renderPage = () => {
+        switch (page) {
+            case 'login':
+                return <LoginPage setPage={setPage} />;
+            case 'register':
+                return <RegisterPage setPage={setPage} />;
+            case 'mentors':
+                return <MentorsPage setPage={setPage} />;
+            case 'sessions':
+                return <SessionsPage setPage={setPage} />;
+            case 'forum':
+                return <ForumPage setPage={setPage} />;
+            case 'profile':
+                return <ProfilePage setPage={setPage} />;
+            case 'home':
+            default:
+                return <HomePage setPage={setPage} />;
+        }
+    };
+
+    return (
+        <AuthProvider>
+            <div className="app">
+                <Navigation setPage={setPage} />
+                <main>
+                    {renderPage()}
+                </main>
+            </div>
+        </AuthProvider>
+    );
+};
+
+export default SisterCircleApp;
