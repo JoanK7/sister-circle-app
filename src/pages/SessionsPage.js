@@ -1,28 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from '../components/Card';
 import Button from '../components/Button';
-import { db, storage } from '../firebase';
-import { collection, getDocs, query, where, addDoc, onSnapshot, orderBy, doc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db } from '../firebase';
+import { collection, getDocs, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+// Removed: getFunctions, httpsCallable as they are no longer needed for Whereby integration
 import { useAuth } from '../contexts/AuthContext';
 
 const SessionsPage = ({ setPage }) => {
     const { user } = useAuth();
     const [sessions, setSessions] = useState([]);
-    const [activeSession, setActiveSession] = useState(null);
-    const [messages, setMessages] = useState([]);
-    const [text, setText] = useState('');
-    const [recording, setRecording] = useState(false);
-    const [mediaSupported, setMediaSupported] = useState(false);
+    // Removed: activeSession as we're opening a new tab
     const [rescheduleId, setRescheduleId] = useState(null);
     const [newTime, setNewTime] = useState('');
-    const mediaRecorderRef = useRef(null);
-    const audioChunksRef = useRef([]);
-    const unsubscribeRef = useRef(null);
-
-    useEffect(() => {
-        setMediaSupported(!!(window.MediaRecorder));
-    }, []);
+    // Removed: creatingRoom as it was tied to Whereby room creation
 
     useEffect(() => {
         const fetchSessions = async () => {
@@ -33,29 +23,21 @@ const SessionsPage = ({ setPage }) => {
         if (user) fetchSessions();
     }, [user]);
 
-    // Real-time listener for messages
-    useEffect(() => {
-        if (!activeSession) {
-            setMessages([]);
-            if (unsubscribeRef.current) {
-                unsubscribeRef.current();
-                unsubscribeRef.current = null;
-            }
-            return;
-        }
-        const messagesRef = collection(db, 'sessions', activeSession.id, 'messages');
-        const q = query(messagesRef, orderBy('timestamp', 'asc'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        });
-        unsubscribeRef.current = unsubscribe;
-        return () => {
-            if (unsubscribeRef.current) unsubscribeRef.current();
-        };
-    }, [activeSession]);
+    // Removed the entire createVideoRoom function as it's no longer needed for Google Meet
+    // const createVideoRoom = async (sessionId) => { ... };
 
     const handleJoin = (session) => {
-        setActiveSession(session);
+        if (session.meetLink) {
+            // Open the Google Meet link in a new tab! This is the key!
+            window.open(session.meetLink, '_blank', 'noopener,noreferrer');
+        } else {
+            // Show more helpful error message
+            if (session.error) {
+                alert(`This session has an error: ${session.error}. Please contact support or try rescheduling.`);
+            } else {
+                alert("This session does not have a Google Meet link yet. The Meet link creation may have failed. Please try rescheduling or contact support.");
+            }
+        }
     };
 
     const handleReschedule = (session) => {
@@ -69,138 +51,84 @@ const SessionsPage = ({ setPage }) => {
             await updateDoc(doc(db, 'sessions', sessionId), {
                 time: new Date(newTime).toISOString(),
                 status: 'scheduled',
+                lastUpdated: serverTimestamp(),
             });
-            setSessions(sessions => sessions.map(s => s.id === sessionId ? { ...s, time: new Date(newTime).toISOString(), status: 'scheduled' } : s));
+
+            setSessions(sessions => sessions.map(s =>
+                s.id === sessionId
+                    ? { ...s, time: new Date(newTime).toISOString(), status: 'scheduled' }
+                    : s
+            ));
+
             setRescheduleId(null);
             setNewTime('');
+            alert('Session rescheduled successfully!');
         } catch (err) {
             alert('Failed to reschedule: ' + err.message);
-        }
-    };
-
-    const handleSendText = async () => {
-        if (!text.trim() || !activeSession) return;
-        const messagesRef = collection(db, 'sessions', activeSession.id, 'messages');
-        await addDoc(messagesRef, {
-            type: 'text',
-            text,
-            sender: user.uid,
-            timestamp: new Date()
-        });
-        setText('');
-    };
-
-    // --- Voice Messaging ---
-    const handleStartRecording = async () => {
-        if (!mediaSupported) {
-            alert('Voice recording is not supported in this browser.');
-            return;
-        }
-        setRecording(true);
-        audioChunksRef.current = [];
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaRecorder = new window.MediaRecorder(stream);
-            mediaRecorderRef.current = mediaRecorder;
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) {
-                    audioChunksRef.current.push(e.data);
-                }
-            };
-            mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                // Upload to Firebase Storage
-                const fileName = `sessions/${activeSession.id}/voice_${Date.now()}_${user.uid}.webm`;
-                const audioRef = ref(storage, fileName);
-                await uploadBytes(audioRef, audioBlob);
-                const audioUrl = await getDownloadURL(audioRef);
-                // Save message in Firestore
-                const messagesRef = collection(db, 'sessions', activeSession.id, 'messages');
-                await addDoc(messagesRef, {
-                    type: 'audio',
-                    audioUrl,
-                    sender: user.uid,
-                    timestamp: new Date()
-                });
-            };
-            mediaRecorder.start();
-        } catch (err) {
-            setRecording(false);
-            alert('Could not start recording: ' + err.message);
-        }
-    };
-
-    const handleStopRecording = () => {
-        setRecording(false);
-        if (mediaRecorderRef.current) {
-            mediaRecorderRef.current.stop();
-            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
         }
     };
 
     return (
         <div className="container">
             <h2>My Sessions</h2>
-            {!activeSession ? (
-                <div className="grid-3">
-                    {sessions.map(session => (
-                        <Card key={session.id} hover>
-                            <h4>{session.topic}</h4>
-                            <div>with {session.mentorName}</div>
-                            <div>{session.time ? new Date(session.time).toLocaleString() : 'Not scheduled yet'}</div>
-                            {rescheduleId === session.id ? (
-                                <div style={{ margin: '1em 0' }}>
-                                    <input
-                                        type="datetime-local"
-                                        value={newTime}
-                                        onChange={e => setNewTime(e.target.value)}
-                                        className="input-field"
-                                        style={{ marginRight: 8 }}
-                                    />
-                                    <Button onClick={() => handleRescheduleSubmit(session.id)}>
-                                        Update
-                                    </Button>
-                                    <Button variant="ghost" onClick={() => setRescheduleId(null)}>
-                                        Cancel
-                                    </Button>
-                                </div>
-                            ) : (
-                                <>
-                                    <Button onClick={() => handleJoin(session)}>Join Session</Button>
-                                    <Button variant="ghost" onClick={() => handleReschedule(session)}>Reschedule</Button>
-                                </>
-                            )}
-                        </Card>
-                    ))}
-                </div>
-            ) : (
-                <div>
-                    <Button onClick={() => setActiveSession(null)} variant="ghost">Back to Sessions</Button>
-                    <h3>Session: {activeSession.topic}</h3>
-                    <div className="messages">
-                        {messages.map((msg, idx) => (
-                            <div key={msg.id || idx} className={`message ${msg.sender === user.uid ? 'own' : ''}`}>
-                                {msg.type === 'text' ? msg.text : msg.type === 'audio' ? <audio controls src={msg.audioUrl} /> : null}
+            {/* The activeSession conditional rendering is removed, as we now always show the list */}
+            <div className="grid-3">
+                {sessions.map(session => (
+                    <Card key={session.id} hover>
+                        <h4>{session.topic}</h4>
+                        <div>with {session.mentorName}</div>
+                        <div>{session.time ? new Date(session.time).toLocaleString() : 'Not scheduled yet'}</div>
+                        {/* Show error status if there was an issue with Meet link creation */}
+                        {session.error && (
+                            <div style={{ color: 'red', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+                                ⚠️ {session.error}
                             </div>
-                        ))}
-                    </div>
-                    <div className="message-inputs">
-                        <input
-                            type="text"
-                            value={text}
-                            onChange={e => setText(e.target.value)}
-                            placeholder="Type a message..."
-                            className="input-field"
-                        />
-                        <Button onClick={handleSendText}>Send</Button>
-                        <Button onClick={recording ? handleStopRecording : handleStartRecording}>
-                            {recording ? 'Stop Recording' : 'Record Voice'}
-                        </Button>
-                    </div>
-                </div>
-            )}
+                        )}
+                        {/* Show Meet link status */}
+                        {session.meetLink ? (
+                            <div style={{ color: 'green', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+                                ✅ Meet link available
+                            </div>
+                        ) : (
+                            <div style={{ color: 'orange', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+                                ⏳ Meet link pending
+                            </div>
+                        )}
+
+                        {rescheduleId === session.id ? (
+                            <div style={{ margin: '1em 0' }}>
+                                <input
+                                    type="datetime-local"
+                                    value={newTime}
+                                    onChange={e => setNewTime(e.target.value)}
+                                    className="input-field"
+                                    style={{ marginRight: 8 }}
+                                />
+                                <Button onClick={() => handleRescheduleSubmit(session.id)} variant="gradient">
+                                    Update
+                                </Button>
+                                <Button variant="ghost" onClick={() => setRescheduleId(null)}>
+                                    Cancel
+                                </Button>
+                            </div>
+                        ) : (
+                            <div style={{ marginTop: '1em' }}>
+                                <Button
+                                    onClick={() => handleJoin(session)}
+                                    variant="gradient"
+                                    disabled={!session.meetLink}
+                                    // Removed: disabled={creatingRoom}
+                                >
+                                    {session.meetLink ? 'Join Session' : 'Meet Link Pending'}
+                                </Button>
+                                <Button variant="ghost" onClick={() => handleReschedule(session)}>Reschedule</Button>
+                            </div>
+                        )}
+                    </Card>
+                ))}
+            </div>
         </div>
     );
 };
 
-export default SessionsPage; 
+export default SessionsPage;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, Users, Calendar, MessageCircle, X, Menu, User as UserIcon } from 'lucide-react';
+import { Heart, Users, Calendar, MessageCircle, X, Menu, User as UserIcon, Home } from 'lucide-react';
 import Button from './Button';
 import { useAuth } from '../contexts/AuthContext';
 import '../App.css';
@@ -41,6 +41,7 @@ const Navigation = ({ setPage }) => {
                     <h1 className="logo-text">SisterCircle</h1>
                 </div>
                 <nav className="desktop-nav">
+                    <NavLink icon={Home} label="Home" page="home" />
                     <NavLink icon={Users} label="Mentors" page="mentors" />
                     <NavLink icon={Calendar} label="Sessions" page="sessions" />
                     <NavLink icon={MessageCircle} label="Forum" page="forum" />
@@ -62,24 +63,24 @@ const Navigation = ({ setPage }) => {
             </div>
             {isMenuOpen && (
                 <div className="mobile-menu">
+                    <MobileNavLink icon={Home} label="Home" page="home" />
                     <MobileNavLink icon={Users} label="Mentors" page="mentors" />
                     <MobileNavLink icon={Calendar} label="Sessions" page="sessions" />
                     <MobileNavLink icon={MessageCircle} label="Forum" page="forum" />
                     {user && <MobileNavLink icon={UserIcon} label="Profile" page="profile" />}
-                    <div className="mobile-menu-divider">
-                        {user ? (
-                            <Button variant="ghost" onClick={handleLogout} className="w-full justify-start">Logout</Button>
-                        ) : (
-                            <div className="mobile-auth-buttons">
-                                <Button variant="ghost" onClick={() => { setPage('login'); setIsMenuOpen(false); }} className="w-full justify-start">Login</Button>
-                                <Button variant="primary" onClick={() => { setPage('register'); setIsMenuOpen(false); }} className="w-full">Sign Up</Button>
-                            </div>
-                        )}
-                    </div>
+                    <div className="mobile-menu-divider"></div>
+                    {user ? (
+                        <Button variant="ghost" onClick={handleLogout} className="w-full justify-start">Logout</Button>
+                    ) : (
+                        <div className="mobile-auth-buttons">
+                            <Button variant="ghost" onClick={() => { setPage('login'); setIsMenuOpen(false); }} className="w-full justify-start">Login</Button>
+                            <Button variant="primary" onClick={() => { setPage('register'); setIsMenuOpen(false); }} className="w-full">Sign Up</Button>
+                        </div>
+                    )}
                 </div>
             )}
         </header>
     );
 };
 
-export default Navigation; 
+export default Navigation;

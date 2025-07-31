@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../components/Card';
 import Button from '../components/Button';
-import { getFirestore, collection, getDocs, addDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { collection, getDocs, addDoc, updateDoc, doc, arrayUnion } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 
 const ForumPage = ({ setPage }) => {
     const { user } = useAuth();
     const [posts, setPosts] = useState([]);
     const [newPost, setNewPost] = useState('');
-    const db = getFirestore();
+    const [notification, setNotification] = useState(null);
 
     useEffect(() => {
         const fetchPosts = async () => {
@@ -17,6 +18,11 @@ const ForumPage = ({ setPage }) => {
         };
         fetchPosts();
     }, [db]);
+
+    const showNotification = (message, type = 'success') => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 3000);
+    };
 
     const handleStartDiscussion = async () => {
         if (!newPost.trim()) return;
@@ -34,12 +40,25 @@ const ForumPage = ({ setPage }) => {
     };
 
     const handleReport = async (postId) => {
-        // TODO: Implement reporting logic (e.g., add user.uid to post's reports array in Firestore)
-        alert('Reported post: ' + postId);
+        if (!user) return;
+        try {
+            const postRef = doc(db, 'forumPosts', postId);
+            await updateDoc(postRef, {
+                reports: arrayUnion(user.uid)
+            });
+            showNotification('Post reported. Thank you for helping keep the community safe!');
+        } catch (err) {
+            showNotification('Failed to report post: ' + err.message, 'error');
+        }
     };
 
     return (
         <div className="container">
+            {notification && (
+                <div className={`notification ${notification.type === 'error' ? 'error' : 'success'}`}>
+                    {notification.message}
+                </div>
+            )}
             <h2>Community Forum</h2>
             <div className="forum-new-post">
                 <textarea
@@ -49,7 +68,7 @@ const ForumPage = ({ setPage }) => {
                     className="input-field"
                     style={{ width: '100%', minHeight: 60 }}
                 />
-                <Button onClick={handleStartDiscussion}>Start Discussion</Button>
+                <Button onClick={handleStartDiscussion} variant="gradient">Start Discussion</Button>
             </div>
             <div className="forum-posts">
                 {posts.map(post => (

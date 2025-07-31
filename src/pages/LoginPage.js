@@ -7,8 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import '../App.css';
 
 const LoginPage = ({ setPage }) => {
-    // Destructure signInWithGoogle from useAuth
-    const { login, signInWithGoogle } = useAuth(); // ADDED: signInWithGoogle
+    const { login, signInWithGoogle } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -20,54 +19,50 @@ const LoginPage = ({ setPage }) => {
             await login(email, password);
             setPage('home');
         } catch (err) {
-            setError(err.message);
+            setError(err.message.replace('Firebase: ', ''));
         }
     };
 
-    // NEW: Handler for Google Sign-In
     const handleGoogleSignIn = async () => {
-        setError(''); // Clear previous errors
+        setError('');
         try {
             await signInWithGoogle();
-            setPage('home'); // Redirect on successful Google login
+            setPage('home');
         } catch (err) {
-            // Display error for Google Sign-In
-            setError(err.message); 
+            setError(err.message.replace('Firebase: ', ''));
         }
     };
 
     return (
-        <div className="auth-page">
-            <Card className="auth-card">
+        <div className="auth-page" style={{ background: 'white' }}>
+            <Card className="auth-card" style={{ maxWidth: '420px', boxShadow: 'none' }}>
                 <div className="auth-header">
-                    <div className="logo-icon-wrapper">
-                        <Heart className="logo-icon" />
+                    <div className="logo-icon-wrapper" style={{ width: '3rem', height: '3rem', margin: '0 auto 1rem' }}>
+                        <Heart className="logo-icon" style={{ width: '1.5rem', height: '1.5rem' }} />
                     </div>
                     <h2 className="auth-title">Welcome Back!</h2>
                     <p className="auth-subtitle">Log in to continue your journey with SisterCircle.</p>
                 </div>
+
                 <form onSubmit={handleSubmit} className="auth-form">
                     {error && <p className="error-message form-error">{error}</p>}
-                    <Input label="Email Address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
-                    <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
-                    <Button type="submit" variant="primary" className="w-full">
-                        <LogIn className="inline-block mr-2" /> Log In
+                    <Input label="Email or Phone" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email or phone" required />
+                    <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" required />
+                    <Button type="submit" variant="gradient" className="w-full">
+                        Login
                     </Button>
                 </form>
 
-                {/* NEW: Divider and Google Sign-In Button */}
                 <div className="social-login-divider">
                     <span className="social-login-text">OR</span>
                 </div>
-                <Button 
-                    type="button" // Important: set type to "button" to prevent form submission
-                    variant="secondary" 
-                    className="w-full social-login-button" 
-                    onClick={handleGoogleSignIn} // Call the new handler
+                
+                <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full"
+                    onClick={handleGoogleSignIn}
                 >
-                    {/* You'll need to add an SVG or image for the Google icon here. 
-                        For example: <img src="/images/google_icon.svg" alt="Google icon" className="inline-block mr-2 w-5 h-5" /> 
-                        Or use an icon library if available. */}
                     Sign in with Google
                 </Button>
 

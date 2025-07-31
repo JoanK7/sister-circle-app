@@ -8,6 +8,7 @@ import MentorsPage from './pages/MentorsPage';
 import SessionsPage from './pages/SessionsPage';
 import ForumPage from './pages/ForumPage';
 import ProfilePage from './pages/ProfilePage';
+import AdminDashboard from './pages/AdminDashboard';
 import './App.css';
 
 const SisterCircleApp = () => {
@@ -27,6 +28,8 @@ const SisterCircleApp = () => {
                 return <ForumPage setPage={setPage} />;
             case 'profile':
                 return <ProfilePage setPage={setPage} />;
+            case 'admin':
+                return <AdminDashboard />;
             case 'home':
             default:
                 return <HomePage setPage={setPage} />;
