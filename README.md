@@ -39,7 +39,7 @@ Before you begin, ensure you have the following installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/JoanK7/sister-circle-app.git
 cd sister-circle-app
 ```
 
