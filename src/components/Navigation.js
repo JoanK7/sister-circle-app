@@ -1,84 +1,108 @@
 import React, { useState } from 'react';
-import { Heart, Users, Calendar, MessageCircle, X, Menu, User as UserIcon, Home } from 'lucide-react';
-import Button from './Button';
 import { useAuth } from '../contexts/AuthContext';
-import '../App.css';
+import Button from './Button';
+import { Home, Users, MessageCircle, User, Settings, LogOut, Menu, X } from 'lucide-react';
 
 const Navigation = ({ setPage }) => {
     const { user, logout } = useAuth();
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const handleLogout = async () => {
         try {
             await logout();
             setPage('home');
         } catch (error) {
-            console.error('Logout error:', error);
+            console.error('Failed to log out:', error);
         }
     };
 
-    const NavLink = ({ icon: Icon, label, page }) => (
-        <button onClick={() => { setPage(page); setIsMenuOpen(false); }} className="nav-link">
-            <Icon className="nav-link-icon" />
-            <span>{label}</span>
-        </button>
-    );
-
-    const MobileNavLink = ({ icon: Icon, label, page }) => (
-        <button onClick={() => { setPage(page); setIsMenuOpen(false); }} className="mobile-nav-link">
-            <Icon className="mobile-nav-link-icon" />
-            <span>{label}</span>
-        </button>
-    );
-
     return (
         <header className="header">
-            <div className="container header-container">
+            <div className="header-container">
                 <div className="logo" onClick={() => setPage('home')}>
                     <div className="logo-icon-wrapper">
-                        <Heart className="logo-icon" />
+                        <Home className="logo-icon" />
                     </div>
-                    <h1 className="logo-text">SisterCircle</h1>
+                    <span className="logo-text">SisterCircle</span>
                 </div>
-                <nav className="desktop-nav">
-                    <NavLink icon={Home} label="Home" page="home" />
-                    <NavLink icon={Users} label="Mentors" page="mentors" />
-                    <NavLink icon={Calendar} label="Sessions" page="sessions" />
-                    <NavLink icon={MessageCircle} label="Forum" page="forum" />
-                    {user && <NavLink icon={UserIcon} label="Profile" page="profile" />}
-                    {user ? (
-                        <Button variant="ghost" size="sm" onClick={handleLogout}>Logout</Button>
-                    ) : (
-                        <div className="auth-buttons">
-                            <Button variant="ghost" size="sm" onClick={() => setPage('login')}>Login</Button>
-                            <Button variant="primary" size="sm" onClick={() => setPage('register')}>Sign Up</Button>
+
+                {user ? (
+                    <>
+                        <nav className="desktop-nav">
+                            <button className="nav-link" onClick={() => setPage('mentors')}>
+                                <Users className="nav-link-icon" />
+                                Mentors
+                            </button>
+                            <button className="nav-link" onClick={() => setPage('sessions')}>
+                                <MessageCircle className="nav-link-icon" />
+                                Sessions
+                            </button>
+                            <button className="nav-link" onClick={() => setPage('forum')}>
+                                <MessageCircle className="nav-link-icon" />
+                                Forum
+                            </button>
+                            <button className="nav-link" onClick={() => setPage('profile')}>
+                                <User className="nav-link-icon" />
+                                Profile
+                            </button>
+                            <button className="nav-link" onClick={() => setPage('admin')}>
+                                <Settings className="nav-link-icon" />
+                                Admin
+                            </button>
+                            <Button variant="ghost" onClick={handleLogout}>
+                                <LogOut className="nav-link-icon" />
+                                Logout
+                            </Button>
+                        </nav>
+
+                        <div className="mobile-menu-button">
+                            <button 
+                                className="menu-toggle" 
+                                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                            >
+                                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                            </button>
                         </div>
-                    )}
-                </nav>
-                <div className="mobile-menu-button">
-                    <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="menu-toggle">
-                        {isMenuOpen ? <X /> : <Menu />}
-                    </button>
-                </div>
+
+                        {mobileMenuOpen && (
+                            <div className="mobile-menu">
+                                <button className="mobile-nav-link" onClick={() => { setPage('mentors'); setMobileMenuOpen(false); }}>
+                                    <Users className="mobile-nav-link-icon" />
+                                    Mentors
+                                </button>
+                                <button className="mobile-nav-link" onClick={() => { setPage('sessions'); setMobileMenuOpen(false); }}>
+                                    <MessageCircle className="mobile-nav-link-icon" />
+                                    Sessions
+                                </button>
+                                <button className="mobile-nav-link" onClick={() => { setPage('forum'); setMobileMenuOpen(false); }}>
+                                    <MessageCircle className="mobile-nav-link-icon" />
+                                    Forum
+                                </button>
+                                <button className="mobile-nav-link" onClick={() => { setPage('profile'); setMobileMenuOpen(false); }}>
+                                    <User className="mobile-nav-link-icon" />
+                                    Profile
+                                </button>
+                                <button className="mobile-nav-link" onClick={() => { setPage('admin'); setMobileMenuOpen(false); }}>
+                                    <Settings className="mobile-nav-link-icon" />
+                                    Admin
+                                </button>
+                                <div className="mobile-menu-divider"></div>
+                                <div className="mobile-auth-buttons">
+                                    <Button variant="ghost" onClick={handleLogout} className="w-full">
+                                        <LogOut className="mobile-nav-link-icon" />
+                                        Logout
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <div className="auth-buttons">
+                        <Button variant="ghost" onClick={() => setPage('login')}>Login</Button>
+                        <Button variant="gradient" onClick={() => setPage('register')}>Get Started</Button>
+                    </div>
+                )}
             </div>
-            {isMenuOpen && (
-                <div className="mobile-menu">
-                    <MobileNavLink icon={Home} label="Home" page="home" />
-                    <MobileNavLink icon={Users} label="Mentors" page="mentors" />
-                    <MobileNavLink icon={Calendar} label="Sessions" page="sessions" />
-                    <MobileNavLink icon={MessageCircle} label="Forum" page="forum" />
-                    {user && <MobileNavLink icon={UserIcon} label="Profile" page="profile" />}
-                    <div className="mobile-menu-divider"></div>
-                    {user ? (
-                        <Button variant="ghost" onClick={handleLogout} className="w-full justify-start">Logout</Button>
-                    ) : (
-                        <div className="mobile-auth-buttons">
-                            <Button variant="ghost" onClick={() => { setPage('login'); setIsMenuOpen(false); }} className="w-full justify-start">Login</Button>
-                            <Button variant="primary" onClick={() => { setPage('register'); setIsMenuOpen(false); }} className="w-full">Sign Up</Button>
-                        </div>
-                    )}
-                </div>
-            )}
         </header>
     );
 };

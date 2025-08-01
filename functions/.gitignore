@@ -1,4 +1,0 @@
-node_modules/
-*.local
-# Ignore service account key
-service-account-key.json

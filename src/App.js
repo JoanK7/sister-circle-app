@@ -16,6 +16,8 @@ const SisterCircleApp = () => {
 
     const renderPage = () => {
         switch (page) {
+            case 'home':
+                return <HomePage setPage={setPage} />;
             case 'login':
                 return <LoginPage setPage={setPage} />;
             case 'register':
@@ -30,7 +32,6 @@ const SisterCircleApp = () => {
                 return <ProfilePage setPage={setPage} />;
             case 'admin':
                 return <AdminDashboard />;
-            case 'home':
             default:
                 return <HomePage setPage={setPage} />;
         }

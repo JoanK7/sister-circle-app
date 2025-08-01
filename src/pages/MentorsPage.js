@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { db } from '../firebase';
-// Import Firebase SDKs for calling cloud functions and updating documents
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { collection, getDocs, query, where, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
+import { Search, Filter, Star, MapPin, Clock } from 'lucide-react';
 
 const MentorsPage = ({ setPage }) => {
     const { user } = useAuth();
@@ -41,93 +40,24 @@ const MentorsPage = ({ setPage }) => {
     }, [mentors, user]);
 
     const handleRequestSession = async (mentor) => {
-        if (!user) {
-            setConfirmation("Please log in to request a session.");
-            return;
-        }
-        // Assume the mentor object contains an 'email' field
-        if (!mentor.email || !user.email) {
-            setConfirmation("Could not find email for mentor or mentee.");
-            return;
-        }
-    
         setRequesting(true);
         setConfirmation('');
         try {
-            console.log('Creating session for:', {
-                mentor: mentor.fullName,
-                mentorEmail: mentor.email,
-                mentee: user.fullName,
-                menteeEmail: user.email
-            });
-
-            const sessionDocRef = await addDoc(collection(db, 'sessions'), {
+            // Create a new session document in Firestore
+            await addDoc(collection(db, 'sessions'), {
                 mentorId: mentor.uid,
                 mentorName: mentor.fullName,
                 menteeId: user.uid,
-                menteeName: user.fullName || user.displayName,
+                menteeName: user.fullName,
                 participants: [mentor.uid, user.uid],
-                topic: `Mentorship with ${mentor.fullName}`,
-                createdAt: serverTimestamp(),
+                topic: 'Micro-mentorship Session',
+                time: null, // To be scheduled/rescheduled
+                createdAt: new Date(),
                 status: 'pending',
-                meetLink: null, // Initially null
             });
-
-            console.log('Session created with ID:', sessionDocRef.id);
-
-            const functions = getFunctions();
-            const createGoogleMeet = httpsCallable(functions, 'createGoogleMeet');
-    
-            console.log('Calling createGoogleMeet function...');
-            // Pass the required email addresses to the function
-            const result = await createGoogleMeet({
-                mentorEmail: mentor.email,
-                menteeEmail: user.email,
-                topic: `Mentorship with ${mentor.fullName}`
-            });
-    
-            console.log('Google Meet creation result:', result.data);
-            const { meetLink } = result.data;
-    
-            if (!meetLink) {
-                throw new Error('No Meet link returned from cloud function');
-            }
-
-            await updateDoc(sessionDocRef, {
-                meetLink: meetLink
-            });
-    
-            console.log('Session updated with Meet link:', meetLink);
-            setConfirmation(`Session request sent to ${mentor.fullName}! Meet link created successfully.`);
-            // Optionally navigate to the sessions page
-            setPage('sessions');
-    
+            setConfirmation(`Session request sent to ${mentor.fullName}!`);
         } catch (err) {
-            console.error("Error requesting session:", err);
             setConfirmation('Failed to request session: ' + err.message);
-            
-            // If Google Meet creation fails, still create the session but mark it
-            if (err.message.includes('Google Meet') || err.message.includes('calendar') || err.message.includes('Meet link')) {
-                try {
-                    console.log('Creating fallback session without Meet link...');
-                    await addDoc(collection(db, 'sessions'), {
-                        mentorId: mentor.uid,
-                        mentorName: mentor.fullName,
-                        menteeId: user.uid,
-                        menteeName: user.fullName || user.displayName,
-                        participants: [mentor.uid, user.uid],
-                        topic: `Mentorship with ${mentor.fullName}`,
-                        createdAt: serverTimestamp(),
-                        status: 'pending',
-                        meetLink: null,
-                        error: 'Google Meet creation failed'
-                    });
-                    setConfirmation(`Session request sent to ${mentor.fullName}! (Meet link creation failed - will be retried)`);
-                } catch (fallbackErr) {
-                    console.error("Fallback session creation failed:", fallbackErr);
-                    setConfirmation('Failed to create session: ' + fallbackErr.message);
-                }
-            }
         }
         setRequesting(false);
     };
@@ -146,29 +76,67 @@ const MentorsPage = ({ setPage }) => {
         return matchesSearch && matchesInterest;
     });
 
+    // Mock data for demonstration - replace with real data
+    const mockMentors = [
+        {
+            id: '1',
+            fullName: 'Amina Hassan',
+            location: 'Nairobi, Kenya',
+            bio: 'Business consultant with 8 years experience helping women start and grow their businesses.',
+            interests: ['Business', 'Leadership', 'Entrepreneurship'],
+            availability: 'Weekdays 2-6 PM',
+            rating: 4.9,
+            sessions: 45
+        },
+        {
+            id: '2',
+            fullName: 'Grace Uwimana',
+            location: 'Kigali, Rwanda',
+            bio: 'Tech professional with expertise in software development and career transitions.',
+            interests: ['Tech Careers', 'Programming', 'Career Change'],
+            availability: 'Evenings & weekends',
+            rating: 4.8,
+            sessions: 32
+        },
+        {
+            id: '3',
+            fullName: 'Fatima Okonkwo',
+            location: 'Lagos, Nigeria',
+            bio: 'Life coach specializing in work-life balance and mental health for women.',
+            interests: ['Motherhood', 'Work-Life Balance', 'Mental Health'],
+            availability: 'Flexible hours',
+            rating: 5.0,
+            sessions: 28
+        }
+    ];
+
     return (
         <div className="container">
-            <h2>Find Your Mentor</h2>
+            <h2 className="text-3xl font-bold mb-6">Find Your Mentor</h2>
             
             {/* Search and Filter Section */}
-            <div style={{ marginBottom: '2rem' }}>
-                <input
-                    type="text"
-                    placeholder="Search by expertise, name, or bio..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    className="input-field"
-                    style={{ marginBottom: '1rem', width: '100%' }}
-                />
+            <div className="mb-8">
+                <div className="relative mb-4">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                        type="text"
+                        placeholder="Search by expertise, name, or bio..."
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        className="input-field pl-10"
+                        style={{ width: '100%' }}
+                    />
+                </div>
                 
                 {/* Interest Filter */}
-                <div style={{ marginBottom: '1rem' }}>
-                    <label className="input-label">Filter by Interest:</label>
+                <div className="flex items-center gap-4">
+                    <Filter className="w-5 h-5 text-gray-500" />
+                    <label className="input-label mb-0">Filter by Interest:</label>
                     <select
                         value={selectedInterest}
                         onChange={e => setSelectedInterest(e.target.value)}
                         className="input-field"
-                        style={{ width: 'auto', marginLeft: '0.5rem' }}
+                        style={{ width: 'auto' }}
                     >
                         <option value="">All Interests</option>
                         {allInterests.map(interest => (
@@ -178,54 +146,110 @@ const MentorsPage = ({ setPage }) => {
                 </div>
             </div>
 
-            {confirmation && <div className="notification success">{confirmation}</div>}
+            {confirmation && <div className="confirmation-message">{confirmation}</div>}
             
-            <h3>Suggested Matches</h3>
-            <div className="grid-3">
+            <h3 className="text-xl font-semibold mb-4">Suggested Matches</h3>
+            <div className="grid-3 mb-8">
                 {suggested.map(mentor => (
-                    <Card key={mentor.uid} hover>
-                        <h4>{mentor.fullName}</h4>
-                        <div>{mentor.location}</div>
-                        <div>{mentor.bio}</div>
-                        <div>
+                    <Card key={mentor.uid} className="mentor-card" hover>
+                        <div className="mentor-avatar">
+                            {mentor.fullName?.charAt(0)?.toUpperCase() || 'M'}
+                        </div>
+                        
+                        <h4 className="text-lg font-bold mb-1">{mentor.fullName}</h4>
+                        
+                        <div className="flex items-center gap-1 mb-2">
+                            <MapPin className="w-4 h-4 text-gray-500" />
+                            <span className="text-gray-600">{mentor.location}</span>
+                        </div>
+                        
+                        <div className="mentor-rating mb-2">
+                            <Star className="w-4 h-4 fill-current" />
+                            <span>{mentor.rating || 4.5}</span>
+                            <span className="text-gray-500 ml-1">{mentor.sessions || 0} sessions</span>
+                        </div>
+                        
+                        <p className="text-gray-700 mb-3 text-sm">{mentor.bio}</p>
+                        
+                        <div className="mentor-expertise">
                             {mentor.interests?.map(tag => (
                                 <span key={tag} className="tag">{tag}</span>
                             ))}
                         </div>
-                        <Button onClick={() => handleRequestSession(mentor)} disabled={requesting} variant="gradient">
+                        
+                        <div className="mentor-availability">
+                            <Clock className="w-4 h-4" />
+                            <span>{mentor.availability}</span>
+                        </div>
+                        
+                        <Button 
+                            onClick={() => handleRequestSession(mentor)} 
+                            disabled={requesting} 
+                            variant="gradient"
+                            className="w-full mt-4"
+                        >
                             {requesting ? 'Sending...' : 'Request Session'}
                         </Button>
                     </Card>
                 ))}
             </div>
             
-            <h3>All Mentors ({filteredMentors.length})</h3>
+            <h3 className="text-xl font-semibold mb-4">All Mentors ({filteredMentors.length})</h3>
             <div className="grid-3">
-                {filteredMentors.map(mentor => (
-                    <Card key={mentor.uid} hover>
-                        <h4>{mentor.fullName}</h4>
-                        <div>{mentor.location}</div>
-                        <div>{mentor.bio}</div>
-                        <div>
+                {filteredMentors.length > 0 ? filteredMentors.map(mentor => (
+                    <Card key={mentor.uid} className="mentor-card" hover>
+                        <div className="mentor-avatar">
+                            {mentor.fullName?.charAt(0)?.toUpperCase() || 'M'}
+                        </div>
+                        
+                        <h4 className="text-lg font-bold mb-1">{mentor.fullName}</h4>
+                        
+                        <div className="flex items-center gap-1 mb-2">
+                            <MapPin className="w-4 h-4 text-gray-500" />
+                            <span className="text-gray-600">{mentor.location}</span>
+                        </div>
+                        
+                        <div className="mentor-rating mb-2">
+                            <Star className="w-4 h-4 fill-current" />
+                            <span>{mentor.rating || 4.5}</span>
+                            <span className="text-gray-500 ml-1">{mentor.sessions || 0} sessions</span>
+                        </div>
+                        
+                        <p className="text-gray-700 mb-3 text-sm">{mentor.bio}</p>
+                        
+                        <div className="mentor-expertise">
                             {mentor.interests?.map(tag => (
                                 <span key={tag} className="tag">{tag}</span>
                             ))}
                         </div>
-                        <Button onClick={() => handleRequestSession(mentor)} disabled={requesting} variant="gradient">
+                        
+                        <div className="mentor-availability">
+                            <Clock className="w-4 h-4" />
+                            <span>{mentor.availability}</span>
+                        </div>
+                        
+                        <Button 
+                            onClick={() => handleRequestSession(mentor)} 
+                            disabled={requesting} 
+                            variant="gradient"
+                            className="w-full mt-4"
+                        >
                             {requesting ? 'Sending...' : 'Request Session'}
                         </Button>
                     </Card>
-                ))}
+                )) : (
+                    <div className="text-center py-8 col-span-full">
+                        <div className="w-16 h-16 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Search className="w-8 h-8 text-white" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-gray-700 mb-2">No mentors found</h3>
+                        <p className="text-gray-500 mb-4">Try adjusting your search criteria</p>
+                        <Button onClick={() => { setSearch(''); setSelectedInterest(''); }} variant="ghost">
+                            Clear Filters
+                        </Button>
+                    </div>
+                )}
             </div>
-            
-            {filteredMentors.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '2rem' }}>
-                    <p>No mentors found matching your criteria.</p>
-                    <Button onClick={() => { setSearch(''); setSelectedInterest(''); }} variant="ghost">
-                        Clear Filters
-                    </Button>
-                </div>
-            )}
         </div>
     );
 };
